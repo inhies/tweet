@@ -27,9 +27,9 @@
       auto_join_text_url: " I was looking at ", // [string]   auto tense for urls: "I was looking at" http:...
       loading_text: null,                       // [string]   optional loading text, displayed while tweets load
       refresh_interval: null,                   // [integer]  optional number of seconds after which to reload tweets
-      twitter_url: "twitter.com",               // [string]   custom twitter url, if any (apigee, etc.)
-      twitter_api_url: "api.twitter.com",       // [string]   custom twitter api url, if any (apigee, etc.)
-      twitter_search_url: "search.twitter.com", // [string]   custom twitter search url, if any (apigee, etc.)
+      twitter_url: "socialno.de",               // [string]   custom twitter url, if any (apigee, etc.)
+      twitter_api_url: "socialno.de/api",       // [string]   custom twitter api url, if any (apigee, etc.)
+      twitter_search_url: "socialno.de/search/notice", // [string]   custom twitter search url, if any (apigee, etc.)
       template: "{avatar}{time}{join} {text}",  // [string or function] template used to construct each tweet <li> - see code for available vars
       comparator: function(tweet1, tweet2) {    // [function] comparator used to sort tweets (see Array.sort)
         return tweet2.tweet_time - tweet1.tweet_time;
@@ -76,7 +76,7 @@
       linkUser: replacer(/(^|[\W])@(\w+)/gi, "$1<span class=\"at\">@</span><a href=\"http://"+s.twitter_url+"/$2\">$2</a>"),
       // Support various latin1 (\u00**) and arabic (\u06**) alphanumeric chars
       linkHash: replacer(/(?:^| )[\#]+([\w\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u00ff\u0600-\u06ff]+)/gi,
-                         ' <a href="http://'+s.twitter_search_url+'/search?q=&tag=$1&lang=all'+
+                         ' <a href="http://'+s.twitter_search_url+'?q=$1&search=Search'+
                          ((s.username && s.username.length === 1 && !s.list) ? '&from='+s.username.join("%2BOR%2B") : '')+
                          '" class="tweet_hashtag">#$1</a>'),
       makeHeart: replacer(/(&lt;)+[3]/gi, "<tt class='heart'>&#x2665;</tt>")
@@ -147,11 +147,11 @@
       var count = (s.fetch === null) ? s.count : s.fetch;
       var common_params = '&include_entities=1&callback=?';
       if (s.list) {
-        return proto+"//"+s.twitter_api_url+"/1/"+s.username[0]+"/lists/"+s.list+"/statuses.json?page="+s.page+"&per_page="+count+common_params;
+        return proto+"//"+s.twitter_api_url+"/"+s.username[0]+"/lists/"+s.list+"/statuses.json?page="+s.page+"&per_page="+count+common_params;
       } else if (s.favorites) {
-        return proto+"//"+s.twitter_api_url+"/1/favorites.json?screen_name="+s.username[0]+"&page="+s.page+"&count="+count+common_params;
+        return proto+"//"+s.twitter_api_url+"/favorites.json?screen_name="+s.username[0]+"&page="+s.page+"&count="+count+common_params;
       } else if (s.query === null && s.username.length === 1) {
-        return proto+'//'+s.twitter_api_url+'/1/statuses/user_timeline.json?screen_name='+s.username[0]+'&count='+count+(s.retweets ? '&include_rts=1' : '')+'&page='+s.page+common_params;
+        return proto+'//'+s.twitter_api_url+'/statuses/user_timeline.json?screen_name='+s.username[0]+'&count='+count+(s.retweets ? '&include_rts=1' : '')+'&page='+s.page+common_params;
       } else {
         var query = (s.query || 'from:'+s.username.join(' OR from:'));
         return proto+'//'+s.twitter_search_url+'/search.json?&q='+encodeURIComponent(query)+'&rpp='+count+'&page='+s.page+common_params;
@@ -159,6 +159,7 @@
     }
 
     function extract_avatar_url(item, secure) {
+      console.log(item);
       if (secure) {
         return ('user' in item) ?
           item.user.profile_image_url_https :
@@ -174,6 +175,7 @@
     function extract_template_data(item){
       var o = {};
       o.item = item;
+
       o.source = item.source;
       o.screen_name = item.from_user || item.user.screen_name;
       // The actual user name is not returned by all Twitter APIs, so please do not
@@ -183,10 +185,20 @@
 
       o.tweet_time = parse_date(item.created_at);
       o.join_text = s.join_text === "auto" ? build_auto_join_text(item.text) : s.join_text;
-      o.tweet_id = item.id_str;
-      o.twitter_base = "http://"+s.twitter_url+"/";
+      o.tweet_id = item.id;
+      o.twitter_url = s.twitter_url;
+      o.twitter_base = "http://"+o.twitter_url+"/";
       o.user_url = o.twitter_base+o.screen_name;
       o.tweet_url = o.user_url+"/status/"+o.tweet_id;
+	
+	  // If this was a reply, link to the conversation, otherwise link to the status by itself
+      if (item.in_reply_to_status_id != null) {
+        o.context_url = o.twitter_base+"conversation/"+item.statusnet_conversation_id+"#notice-"+o.tweet_id;
+      } else {
+       o.context_url = o.twitter_base+"conversation/"+item.statusnet_conversation_id;
+      }
+      
+
       o.reply_url = o.twitter_base+"intent/tweet?in_reply_to="+o.tweet_id;
       o.retweet_url = o.twitter_base+"intent/retweet?tweet_id="+o.tweet_id;
       o.favorite_url = o.twitter_base+"intent/favorite?tweet_id="+o.tweet_id;
@@ -208,12 +220,16 @@
       o.join = s.join_text ? t('<span class="tweet_join">{join_text}</span>', o) : '';
       o.avatar = o.avatar_size ?
         t('<a class="tweet_avatar" href="{avatar_profile_url}"><img src="{avatar_url}" height="{avatar_size}" width="{avatar_size}" alt="{avatar_screen_name}\'s avatar" title="{avatar_screen_name}\'s avatar" border="0"/></a>', o) : '';
-      o.time = t('<span class="tweet_time"><a href="{tweet_url}" title="view tweet on twitter">{tweet_relative_time}</a></span>', o);
+      o.time = t('<span class="tweet_time"><a href="{tweet_url}" title="view post on {twitter_url}">{tweet_relative_time}</a></span>', o);
       o.text = t('<span class="tweet_text">{tweet_text_fancy}</span>', o);
       o.retweeted_text = t('<span class="tweet_text">{retweeted_tweet_text}</span>', o);
       o.reply_action = t('<a class="tweet_action tweet_reply" href="{reply_url}">reply</a>', o);
       o.retweet_action = t('<a class="tweet_action tweet_retweet" href="{retweet_url}">retweet</a>', o);
       o.favorite_action = t('<a class="tweet_action tweet_favorite" href="{favorite_url}">favorite</a>', o);
+	    o.context_action = t('<a class="tweet_action" title="view conversation on {twitter_url}" href="{context_url}">context</a>', o);
+     
+      // console.log(o);
+
       return o;
     }
 
