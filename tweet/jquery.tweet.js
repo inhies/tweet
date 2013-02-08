@@ -29,8 +29,11 @@
       refresh_interval: null,                   // [integer]  optional number of seconds after which to reload tweets
       twitter_url: "socialno.de",               // [string]   custom twitter url, if any (apigee, etc.)
       twitter_api_url: "socialno.de/api",       // [string]   custom twitter api url, if any (apigee, etc.)
-      twitter_search_url: "socialno.de/search/notice", // [string]   custom twitter search url, if any (apigee, etc.)
+      twitter_search_url: "socialno.de/api", // [string]   custom twitter search url, if any (apigee, etc.)
       twitter_tagsearch_url: "socialno.de/tag", // [string]   custom twitter search url, if any (apigee, etc.)
+      tag_query_url: "socialno.de/api/statusnet/tags/timeline",
+      tag_query: null,
+
       template: "{avatar}{time}{join} {text}",  // [string or function] template used to construct each tweet <li> - see code for available vars
       comparator: function(tweet1, tweet2) {    // [function] comparator used to sort tweets (see Array.sort)
         return tweet2.tweet_time - tweet1.tweet_time;
@@ -77,9 +80,13 @@
       linkUser: replacer(/(^|[\W])@(\w+)/gi, "$1<span class=\"at\">@</span><a href=\"http://"+s.twitter_url+"/$2\">$2</a>"),
       // Support various latin1 (\u00**) and arabic (\u06**) alphanumeric chars
       linkHash: replacer(/(?:^| )[\#]+([\w\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u00ff\u0600-\u06ff]+)/gi,
-                         ' <a href="http://'+s.twitter_tagsearch_url+'/$1'+
+                         ' #<a href="http://'+s.twitter_tagsearch_url+'/$1'+
                          ((s.username && s.username.length === 1 && !s.list) ? '&from='+s.username.join("%2BOR%2B") : '')+
-                         '" class="tweet_hashtag">#$1</a>'),
+                         '" class="tweet_hashtag">$1</a>'),
+      linkGroup: replacer(/(?:^| )[\!]+([\w\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u00ff\u0600-\u06ff]+)/gi,
+                         ' !<a href="http://'+s.twitter_url+'/group/$1'+
+                         ((s.username && s.username.length === 1 && !s.list) ? '&from='+s.username.join("%2BOR%2B") : '')+
+                         '" class="tweet_hashtag">$1</a>'),
       makeHeart: replacer(/(<3)/gi, s.heart_replace)
     });
 
@@ -147,13 +154,20 @@
       var proto = ('https:' === document.location.protocol ? 'https:' : 'http:');
       var count = (s.fetch === null) ? s.count : s.fetch;
       var common_params = '&include_entities=1&callback=?';
+      // If a list of usernames was given
       if (s.list) {
         return proto+"//"+s.twitter_api_url+"/"+s.username[0]+"/lists/"+s.list+"/statuses.json?page="+s.page+"&per_page="+count+common_params;
+      // If we are looking for only certain tags
+      } else if (s.tag_query) {
+        return proto+'//'+s.tag_query_url+"/"+s.tag_query+".json";
+      // If we are only displaying the users favorites
       } else if (s.favorites) {
         return proto+"//"+s.twitter_api_url+"/favorites.json?screen_name="+s.username[0]+"&page="+s.page+"&count="+count+common_params;
+      // If we have no query and a username is set, return user's timeline posts
       } else if (s.query === null && s.username.length === 1) {
         return proto+'//'+s.twitter_api_url+'/statuses/user_timeline.json?screen_name='+s.username[0]+'&count='+count+(s.retweets ? '&include_rts=1' : '')+'&page='+s.page+common_params;
       } else {
+      // Do a search
         var query = (s.query || 'from:'+s.username.join(' OR from:'));
         return proto+'//'+s.twitter_search_url+'/search.json?&q='+encodeURIComponent(query)+'&rpp='+count+'&page='+s.page+common_params;
       }
@@ -207,8 +221,8 @@
       o.tweet_relative_time = format_relative_time(extract_relative_time(o.tweet_time));
       o.entities = item.entities ? (item.entities.urls || []).concat(item.entities.media || []) : [];
       o.tweet_raw_text = o.retweet ? ('RT @'+o.retweeted_screen_name+' '+item.retweeted_status.text) : item.text; // avoid '...' in long retweets
-      o.tweet_text = $([linkURLs(o.tweet_raw_text, o.entities)]).linkUser().linkHash()[0];
-      o.retweeted_tweet_text = $([linkURLs(item.text, o.entities)]).linkUser().linkHash()[0];
+      o.tweet_text = $([linkURLs(o.tweet_raw_text, o.entities)]).linkUser().linkGroup().linkHash()[0];
+      o.retweeted_tweet_text = $([linkURLs(item.text, o.entities)]).linkUser().linkGroup().linkHash()[0];
       o.tweet_text_fancy = $([o.tweet_text]).makeHeart()[0]; 
 
       o.avatar_size = s.avatar_size;
@@ -229,7 +243,7 @@
       o.favorite_action = t('<a class="tweet_action tweet_favorite" href="{favorite_url}">favorite</a>', o);
 	    o.context_action = t('<a class="tweet_action" title="view conversation on {twitter_url}" href="{context_url}">context</a>', o);
      
-      // console.log(o);
+       console.log(build_api_url());
 
       return o;
     }
