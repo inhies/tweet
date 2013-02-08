@@ -1,6 +1,8 @@
 # Tweet!
 #### Put twitter on your website with tweet!, an unobtrusive javascript plugin for jquery.
 
+### This is a modified version designed to work with status.net, however I'm too lazy to change all the documentation, so beware! If you want to use this with twitter you don't want my fork.
+
 ## Demos & examples
 
 See [tweet.seaofclouds.com](http://tweet.seaofclouds.com/), or the bundled `index.html` file.
