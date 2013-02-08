@@ -79,7 +79,7 @@
                          ' <a href="http://'+s.twitter_search_url+'?q=$1&search=Search'+
                          ((s.username && s.username.length === 1 && !s.list) ? '&from='+s.username.join("%2BOR%2B") : '')+
                          '" class="tweet_hashtag">#$1</a>'),
-      makeHeart: replacer(/(&lt;)+[3]/gi, "<tt class='heart'>&#x2665;</tt>")
+      makeHeart: replacer(/(<3)/gi, s.heart_replace)
     });
 
     function linkURLs(text, entities) {
