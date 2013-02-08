@@ -30,6 +30,7 @@
       twitter_url: "socialno.de",               // [string]   custom twitter url, if any (apigee, etc.)
       twitter_api_url: "socialno.de/api",       // [string]   custom twitter api url, if any (apigee, etc.)
       twitter_search_url: "socialno.de/search/notice", // [string]   custom twitter search url, if any (apigee, etc.)
+      twitter_tagsearch_url: "socialno.de/tag", // [string]   custom twitter search url, if any (apigee, etc.)
       template: "{avatar}{time}{join} {text}",  // [string or function] template used to construct each tweet <li> - see code for available vars
       comparator: function(tweet1, tweet2) {    // [function] comparator used to sort tweets (see Array.sort)
         return tweet2.tweet_time - tweet1.tweet_time;
@@ -76,10 +77,10 @@
       linkUser: replacer(/(^|[\W])@(\w+)/gi, "$1<span class=\"at\">@</span><a href=\"http://"+s.twitter_url+"/$2\">$2</a>"),
       // Support various latin1 (\u00**) and arabic (\u06**) alphanumeric chars
       linkHash: replacer(/(?:^| )[\#]+([\w\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u00ff\u0600-\u06ff]+)/gi,
-                         ' <a href="http://'+s.twitter_search_url+'?q=$1&search=Search'+
+                         ' <a href="http://'+s.twitter_tagsearch_url+'/$1'+
                          ((s.username && s.username.length === 1 && !s.list) ? '&from='+s.username.join("%2BOR%2B") : '')+
                          '" class="tweet_hashtag">#$1</a>'),
-      makeHeart: replacer(/(&lt;)+[3]/gi, "<tt class='heart'>&#x2665;</tt>")
+      makeHeart: replacer(/(<3)/gi, s.heart_replace)
     });
 
     function linkURLs(text, entities) {
@@ -208,7 +209,7 @@
       o.tweet_raw_text = o.retweet ? ('RT @'+o.retweeted_screen_name+' '+item.retweeted_status.text) : item.text; // avoid '...' in long retweets
       o.tweet_text = $([linkURLs(o.tweet_raw_text, o.entities)]).linkUser().linkHash()[0];
       o.retweeted_tweet_text = $([linkURLs(item.text, o.entities)]).linkUser().linkHash()[0];
-      o.tweet_text_fancy = $([o.tweet_text]).makeHeart()[0];
+      o.tweet_text_fancy = $([o.tweet_text]).makeHeart()[0]; 
 
       o.avatar_size = s.avatar_size;
       o.avatar_url = extract_avatar_url(o.retweet ? item.retweeted_status : item, (document.location.protocol === 'https:'));
