@@ -174,7 +174,6 @@
     }
 
     function extract_avatar_url(item, secure) {
-      console.log(item);
       if (secure) {
         return ('user' in item) ?
           item.user.profile_image_url_https :
@@ -206,7 +205,7 @@
       o.user_url = o.twitter_base+o.screen_name;
       o.tweet_url = o.user_url+"/status/"+o.tweet_id;
 	
-	  // If this was a reply, link to the conversation, otherwise link to the status by itself
+	    // If this was a reply, link to the conversation, otherwise link to the status by itself
       if (item.in_reply_to_status_id != null) {
         o.context_url = o.twitter_base+"conversation/"+item.statusnet_conversation_id+"#notice-"+o.tweet_id;
       } else {
@@ -220,9 +219,16 @@
       o.retweeted_screen_name = o.retweet && item.retweeted_status.user.screen_name;
       o.tweet_relative_time = format_relative_time(extract_relative_time(o.tweet_time));
       o.entities = item.entities ? (item.entities.urls || []).concat(item.entities.media || []) : [];
+      
       o.tweet_raw_text = o.retweet ? ('RT @'+o.retweeted_screen_name+' '+item.retweeted_status.text) : item.text; // avoid '...' in long retweets
       o.tweet_text = $([linkURLs(o.tweet_raw_text, o.entities)]).linkUser().linkGroup().linkHash()[0];
       o.retweeted_tweet_text = $([linkURLs(item.text, o.entities)]).linkUser().linkGroup().linkHash()[0];
+
+      // If this was an activity, like a user started following another user, use the preformatted html  
+      if (item.source == "activity") {
+        o.tweet_text = item.statusnet_html
+      }
+
       o.tweet_text_fancy = $([o.tweet_text]).makeHeart()[0]; 
 
       o.avatar_size = s.avatar_size;
@@ -242,9 +248,6 @@
       o.retweet_action = t('<a class="tweet_action tweet_retweet" href="{retweet_url}">retweet</a>', o);
       o.favorite_action = t('<a class="tweet_action tweet_favorite" href="{favorite_url}">favorite</a>', o);
 	    o.context_action = t('<a class="tweet_action" title="view conversation on {twitter_url}" href="{context_url}">context</a>', o);
-     
-       console.log(build_api_url());
-
       return o;
     }
 
