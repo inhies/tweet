@@ -202,8 +202,7 @@
       o.tweet_id = item.id;
       o.twitter_url = s.twitter_url;
       o.twitter_base = "http://"+o.twitter_url+"/";
-      o.user_url = o.twitter_base+o.screen_name;
-      o.tweet_url = o.user_url+"/status/"+o.tweet_id;
+      o.tweet_url = o.twitter_base+"/notice/"+o.tweet_id;
 	
 	    // If this was a reply, link to the conversation, otherwise link to the status by itself
       if (item.in_reply_to_status_id != null) {
